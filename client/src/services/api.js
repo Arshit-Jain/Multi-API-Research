@@ -1,63 +1,117 @@
+import axios from 'axios'
+
 const API_BASE_URL = 'http://localhost:3000'
+
+// Create axios instance with default config
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  }
+})
 
 // Authentication API
 export const authAPI = {
   async checkAuthStatus() {
-    const response = await fetch(`${API_BASE_URL}/api/auth/status`, {
-      credentials: 'include'
-    })
-    return response.json()
+    try {
+      const response = await apiClient.get('/api/auth/status')
+      return response.data
+    } catch (error) {
+      throw error
+    }
   },
 
   async login(username, password) {
-    const response = await fetch(`${API_BASE_URL}/api/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({ username, password })
-    })
-    return response.json()
+    try {
+      const response = await apiClient.post('/api/login', { username, password })
+      return response.data
+    } catch (error) {
+      throw error
+    }
   },
 
   async register(username, email, password) {
-    const response = await fetch(`${API_BASE_URL}/api/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({ username, email, password })
-    })
-    return response.json()
+    try {
+      const response = await apiClient.post('/api/register', { username, email, password })
+      return response.data
+    } catch (error) {
+      throw error
+    }
   },
 
   async logout() {
-    const response = await fetch(`${API_BASE_URL}/api/logout`, {
-      method: 'POST',
-      credentials: 'include'
-    })
-    return response.json()
+    try {
+      const response = await apiClient.post('/api/logout')
+      return response.data
+    } catch (error) {
+      throw error
+    }
   }
 }
 
 // Chat API
 export const chatAPI = {
-  async sendMessage(message) {
-    const response = await fetch(`${API_BASE_URL}/api/chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({ message })
-    })
-
-    if (response.status === 401) {
-      throw new Error('Authentication required')
+  async getChats() {
+    try {
+      const response = await apiClient.get('/api/chats')
+      return response.data
+    } catch (error) {
+      if (error.response?.status === 401) {
+        throw new Error('Authentication required')
+      }
+      throw error
     }
+  },
 
-    return response.json()
+  async createChat(title = "New Chat") {
+    try {
+      const response = await apiClient.post('/api/chats', { title })
+      return response.data
+    } catch (error) {
+      if (error.response?.status === 401) {
+        throw new Error('Authentication required')
+      }
+      if (error.response?.status === 403) {
+        throw new Error(error.response.data.error || 'Daily chat limit reached')
+      }
+      throw error
+    }
+  },
+
+  async getChatMessages(chatId) {
+    try {
+      const response = await apiClient.get(`/api/chats/${chatId}/messages`)
+      return response.data
+    } catch (error) {
+      if (error.response?.status === 401) {
+        throw new Error('Authentication required')
+      }
+      throw error
+    }
+  },
+
+  async sendMessage(chatId, message) {
+    try {
+      const response = await apiClient.post(`/api/chats/${chatId}/messages`, { message })
+      return response.data
+    } catch (error) {
+      if (error.response?.status === 401) {
+        throw new Error('Authentication required')
+      }
+      throw error
+    }
+  },
+
+  async getChatCount() {
+    try {
+      const response = await apiClient.get('/api/user/chat-count')
+      return response.data
+    } catch (error) {
+      if (error.response?.status === 401) {
+        throw new Error('Authentication required')
+      }
+      throw error
+    }
   }
 }
