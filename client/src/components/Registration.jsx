@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import './Registration.css'
+import { authAPI } from '../services/api'
 
 const Registration = ({ onRegister, onSwitchToLogin }) => {
   const [formData, setFormData] = useState({
@@ -38,20 +39,11 @@ const Registration = ({ onRegister, onSwitchToLogin }) => {
     }
 
     try {
-      const response = await fetch('http://localhost:3000/api/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          username: formData.username,
-          email: formData.email,
-          password: formData.password
-        })
-      })
-
-      const data = await response.json()
+      const data = await authAPI.register(
+        formData.username,
+        formData.email,
+        formData.password
+      )
 
       if (data.success) {
         onRegister(data.user)
@@ -59,7 +51,11 @@ const Registration = ({ onRegister, onSwitchToLogin }) => {
         setError(data.error || 'Registration failed')
       }
     } catch (err) {
-      setError('Network error. Please try again.')
+      if (err.response?.data?.error) {
+        setError(err.response.data.error)
+      } else {
+        setError('Network error. Please try again.')
+      }
     } finally {
       setLoading(false)
     }

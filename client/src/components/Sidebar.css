@@ -39,6 +39,39 @@
   font-weight: bold;
 }
 
+.new-chat-btn:disabled {
+  background-color: #2d2d2d;
+  color: #8e8ea0;
+  cursor: not-allowed;
+}
+
+.chat-limit-info {
+  margin-top: 12px;
+  padding: 8px;
+  background-color: #2d2d2d;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.limit-badge {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.limit-badge.premium {
+  color: #ffd700;
+}
+
+.limit-badge.free {
+  color: #8e8ea0;
+}
+
+.limit-text {
+  font-size: 11px;
+  color: #8e8ea0;
+}
+
 .chat-history {
   flex: 1;
   padding: 16px;
