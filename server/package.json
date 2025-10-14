@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon index.js"
+    "start": "nodemon index.js",
+    "setup-db": "node setup-db.js",
+    "test-connection": "node test-connection.js",
+    "setup-credentials": "node get-credentials.js"
   },
   "keywords": [],
   "author": "",
@@ -14,6 +17,9 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.21.2",
-    "express-session": "^1.18.1"
+    "express-session": "^1.18.1",
+    "pg": "^8.12.0",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5"
   }
 }

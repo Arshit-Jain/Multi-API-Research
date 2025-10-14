@@ -1,6 +1,6 @@
 import './Sidebar.css'
 
-const Sidebar = ({ chats, activeChat, onChatSelect, onNewChat, isOpen, onClose, user, onLogout }) => {
+const Sidebar = ({ chats, activeChat, onChatSelect, onNewChat, isOpen, onClose, user, onLogout, chatCount, loading }) => {
   return (
     <>
       {/* Mobile overlay */}
@@ -8,9 +8,18 @@ const Sidebar = ({ chats, activeChat, onChatSelect, onNewChat, isOpen, onClose, 
       
       <div className={`sidebar ${isOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <button className="new-chat-btn" onClick={onNewChat}>
-            <span>+</span> New Chat
+          <button className="new-chat-btn" onClick={onNewChat} disabled={loading}>
+            <span>+</span> {loading ? 'Creating...' : 'New Chat'}
           </button>
+          
+          <div className="chat-limit-info">
+            <div className={`limit-badge ${chatCount.isPremium ? 'premium' : 'free'}`}>
+              {chatCount.isPremium ? '💎 Premium' : '🆓 Free'}
+            </div>
+            <div className="limit-text">
+              {chatCount.todayCount}/{chatCount.maxChats} chats today
+            </div>
+          </div>
         </div>
         
         <div className="chat-history">

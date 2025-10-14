@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react'
 import Sidebar from './Sidebar'
 import MessageBubble from './MessageBubble'
 import ChatInput from './ChatInput'
@@ -18,8 +19,49 @@ const ChatApp = ({
   onKeyPress,
   onToggleSidebar,
   onCloseSidebar,
-  onLogout
+  onLogout,
+  chatCount,
+  loading
 }) => {
+  const [shouldFocus, setShouldFocus] = useState(false)
+  const messagesEndRef = useRef(null)
+
+  // Smooth fast auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      // Use requestAnimationFrame for smoother scroll
+      requestAnimationFrame(() => {
+        messagesEndRef.current?.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'end'
+        })
+      })
+    }
+  }, [messages])
+
+  // Auto-focus when switching to existing chats with messages
+  useEffect(() => {
+    if (activeChat && messages.length > 0) {
+      setShouldFocus(true)
+      // Reset focus flag after a short delay
+      const timer = setTimeout(() => setShouldFocus(false), 200)
+      return () => clearTimeout(timer)
+    }
+  }, [activeChat, messages.length])
+
+  // Auto-focus when a new empty chat is created (via New Chat button)
+  useEffect(() => {
+    if (activeChat && messages.length === 0 && chats.length > 0) {
+      // Check if this is a newly created chat
+      const currentChat = chats.find(chat => chat.id === activeChat)
+      if (currentChat) {
+        setShouldFocus(true)
+        const timer = setTimeout(() => setShouldFocus(false), 200)
+        return () => clearTimeout(timer)
+      }
+    }
+  }, [activeChat, messages.length, chats.length])
+
   return (
     <div className="app">
       {/* Mobile Header */}
@@ -38,6 +80,8 @@ const ChatApp = ({
         onClose={onCloseSidebar}
         user={user}
         onLogout={onLogout}
+        chatCount={chatCount}
+        loading={loading}
       />
 
       {/* Main Chat Area */}
@@ -51,6 +95,8 @@ const ChatApp = ({
                 isUser={message.isUser}
               />
             ))}
+            {/* Invisible element at the bottom to scroll to */}
+            <div ref={messagesEndRef} />
           </div>
           
           <ChatInput 
@@ -58,6 +104,7 @@ const ChatApp = ({
             onMessageChange={onMessageChange}
             onSendMessage={onSendMessage}
             onKeyPress={onKeyPress}
+            autoFocus={shouldFocus}
           />
         </div>
       </div>

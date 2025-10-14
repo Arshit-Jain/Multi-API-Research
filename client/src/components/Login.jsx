@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import './Login.css'
+import { authAPI } from '../services/api'
+import { FcGoogle } from 'react-icons/fc'
 
 const Login = ({ onLogin, onSwitchToRegister }) => {
   const [username, setUsername] = useState('')
@@ -13,16 +15,7 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
     setError('')
 
     try {
-      const response = await fetch('http://localhost:3000/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ username, password })
-      })
-
-      const data = await response.json()
+      const data = await authAPI.login(username, password)
 
       if (data.success) {
         onLogin(data.user)
@@ -30,16 +23,27 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
         setError(data.error || 'Login failed')
       }
     } catch (err) {
-      setError('Network error. Please try again.')
+      if (err.response?.data?.error) {
+        setError(err.response.data.error)
+      } else {
+        setError('Network error. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
   }
 
+  const handleGoogleLogin = () => {
+    // Redirect to backend Google OAuth endpoint
+    const apiBaseUrl = 'http://localhost:3000'
+    window.location.href = `${apiBaseUrl}/auth/google`
+  }
+
   return (
     <div className="login-container">
       <div className="login-card">
-        <h2>Login to ChatGPT Clone</h2>
+        <h2>Login to Multi API Research</h2>
+
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label htmlFor="username">Username</label>
@@ -72,11 +76,16 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
           </button>
         </form>
 
-        <div className="demo-credentials">
-          <h4>Demo Credentials:</h4>
-          <p><strong>Username:</strong> admin <strong>Password:</strong> password123</p>
-          <p><strong>Username:</strong> user <strong>Password:</strong> user123</p>
+        {/* Divider */}
+        <div className="divider">
+          <span>or</span>
         </div>
+
+        {/* Google login button */}
+        <button className="google-btn" onClick={handleGoogleLogin}>
+          <FcGoogle size={20} style={{ marginRight: '8px' }} />
+          Continue with Google
+        </button>
 
         <div className="switch-form">
           <p>Don't have an account?</p>
