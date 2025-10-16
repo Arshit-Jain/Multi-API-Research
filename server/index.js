@@ -6,6 +6,9 @@ import dotenv from "dotenv";
 import { userQueries, chatQueries, messageQueries, dailyChatQueries } from "./database/queries.js";
 import passport from "passport";
 import GoogleStrategy from "passport-google-oauth20";
+import { OpenAIService } from "./services/openai.js";
+import { GeminiService } from "./services/gemini.js";
+import { sendCombinedResearchReportSendGrid } from "./services/emailService.js";
 
 dotenv.config();
 
@@ -59,8 +62,39 @@ passport.use(new GoogleStrategy.Strategy({
         // Use Google ID as username fallback
         let user = await userQueries.findByEmail(profile.emails[0].value);
         if (!user) {
+            // Generate a unique username by appending random digits
+            const toBaseUsername = (name) => {
+                // Prefer displayName -> email local part -> profile id
+                const raw = (name || '').toString().toLowerCase();
+                const sanitized = raw
+                    .replace(/\s+/g, '_')
+                    .replace(/[^a-z0-9_]/g, '')
+                    .replace(/_+/g, '_')
+                    .replace(/^_+|_+$/g, '')
+                    .slice(0, 20);
+                return sanitized || `user_${(profile.id || '').toString().slice(0, 6)}`;
+            };
+
+            const generateUniqueUsername = async (base) => {
+                // Try several random suffixes before falling back to timestamp
+                for (let i = 0; i < 10; i++) {
+                    const suffix = Math.random().toString().slice(2, 8); // 6 digits
+                    const candidate = `${base}_${suffix}`;
+                    const exists = await userQueries.findByUsername(candidate);
+                    if (!exists) return candidate;
+                }
+                return `${base}_${Date.now().toString().slice(-6)}`;
+            };
+
+            const baseFromDisplay = profile.displayName;
+            const baseFromEmail = (profile.emails && profile.emails[0] && profile.emails[0].value)
+                ? profile.emails[0].value.split('@')[0]
+                : '';
+            const base = toBaseUsername(baseFromDisplay || baseFromEmail || profile.id);
+            const uniqueUsername = await generateUniqueUsername(base);
+
             user = await userQueries.create(
-                profile.displayName || profile.id,
+                uniqueUsername,
                 profile.emails[0].value,
                 "google-oauth",
                 false
@@ -297,6 +331,25 @@ app.post("/api/chats", requireAuth, async (req, res) => {
     }
 });
 
+// Get chat info
+app.get("/api/chats/:chatId", requireAuth, async (req, res) => {
+    try {
+        const { chatId } = req.params;
+        const userId = req.session.userId;
+        
+        // Verify chat belongs to user
+        const chat = await chatQueries.findById(chatId);
+        if (!chat || chat.user_id !== userId) {
+            return res.status(404).json({ success: false, error: 'Chat not found' });
+        }
+        
+        res.json({ success: true, chat });
+    } catch (error) {
+        console.error('Get chat info error:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch chat info' });
+    }
+});
+
 // Get chat messages
 app.get("/api/chats/:chatId/messages", requireAuth, async (req, res) => {
     try {
@@ -317,43 +370,275 @@ app.get("/api/chats/:chatId/messages", requireAuth, async (req, res) => {
     }
 });
 
-// Send message to chat
-app.post("/api/chats/:chatId/messages", requireAuth, async (req, res) => {
+// Step 1: Process initial research topic
+app.post("/api/chats/:chatId/research-topic", requireAuth, async (req, res) => {
     try {
+        console.log('=== RESEARCH TOPIC ENDPOINT ===');
         const { chatId } = req.params;
         const { message } = req.body;
         const userId = req.session.userId;
         
+        console.log('Processing research topic:', { chatId, userId, message });
+        
         // Verify chat belongs to user
         const chat = await chatQueries.findById(chatId);
         if (!chat || chat.user_id !== userId) {
+            console.log('Chat not found or unauthorized:', { chatId, userId });
+            return res.status(404).json({ success: false, error: 'Chat not found' });
+        }
+        
+        // Check if chat is completed or has error
+        if (chat.is_completed || chat.has_error) {
+            console.log('Chat is completed or has error, blocking message:', { 
+                chatId, 
+                isCompleted: chat.is_completed, 
+                hasError: chat.has_error 
+            });
+            return res.status(400).json({ 
+                success: false, 
+                error: 'This chat is completed or has an error. Please start a new chat.' 
+            });
+        }
+        
+        // Save user message
+        await messageQueries.create(chatId, message, true);
+        console.log('User message saved to database');
+        
+        // Generate both title and clarifying questions in a single API call
+        console.log('Generating title and clarifying questions...');
+        const result = await OpenAIService.generateTitleAndQuestions(message);
+        
+        if (result.success) {
+            const generatedTitle = result.title;
+            const questions = result.questions;
+            console.log('Generated title:', generatedTitle);
+            console.log('Generated questions:', questions);
+            
+            // Update chat title
+            await chatQueries.updateTitle(chatId, generatedTitle);
+            console.log('Chat title updated in database');
+            
+            const responseText = `I'd like to help you refine your research topic. To provide you with the most relevant research guidance, I have a few clarifying questions:\n\n${questions.map((q, i) => `${i + 1}. ${q}`).join('\n\n')}\n\nPlease answer these questions one by one, and I'll create a comprehensive research plan for you.`;
+            
+            // Save AI response
+            await messageQueries.create(chatId, responseText, false);
+            console.log('AI response saved to database');
+            
+            res.json({ 
+                success: true, 
+                response: responseText,
+                messageType: 'clarifying_questions',
+                questions: questions,
+                title: generatedTitle,
+                user: req.session.username 
+            });
+        } else {
+            console.log('Failed to generate title and questions, using fallback');
+            const errorResponse = "I'm not able to find the answer right now. Please try again.";
+            await messageQueries.create(chatId, errorResponse, false);
+            
+            // Mark chat as having an error
+            await chatQueries.markAsError(chatId);
+            console.log('Chat marked as error in database');
+            
+            res.json({ 
+                success: true, 
+                response: errorResponse,
+                title: 'Research Topic...',
+                user: req.session.username 
+            });
+        }
+    } catch (error) {
+        console.error('Research topic error:', error);
+        res.status(500).json({ success: false, error: 'Failed to process research topic' });
+    }
+});
+
+// Step 2: Process clarifying question answer
+app.post("/api/chats/:chatId/clarification-answer", requireAuth, async (req, res) => {
+    try {
+        console.log('=== CLARIFICATION ANSWER ENDPOINT ===');
+        const { chatId } = req.params;
+        const { message, questionIndex, totalQuestions, originalTopic, questions, answers } = req.body;
+        const userId = req.session.userId;
+        
+        console.log('Processing clarification answer:', { 
+            chatId, userId, message, questionIndex, totalQuestions, originalTopic 
+        });
+        
+        // Verify chat belongs to user
+        const chat = await chatQueries.findById(chatId);
+        if (!chat || chat.user_id !== userId) {
+            console.log('Chat not found or unauthorized:', { chatId, userId });
+            return res.status(404).json({ success: false, error: 'Chat not found' });
+        }
+        
+        // Check if chat is completed or has error
+        if (chat.is_completed || chat.has_error) {
+            console.log('Chat is completed or has error, blocking message:', { 
+                chatId, 
+                isCompleted: chat.is_completed, 
+                hasError: chat.has_error 
+            });
+            return res.status(400).json({ 
+                success: false, 
+                error: 'This chat is completed or has an error. Please start a new chat.' 
+            });
+        }
+        
+        // Save user message
+        await messageQueries.create(chatId, message, true);
+        console.log('User answer saved to database');
+        
+        // Check if this is the last question
+        if (questionIndex >= totalQuestions - 1) {
+            console.log('Last question answered, generating research page...');
+            
+            // Generate final research pages from OpenAI and Gemini (Gemini optional)
+            let researchResult = { success: false }
+            let geminiResult = { success: false }
+            try {
+                [researchResult, geminiResult] = await Promise.all([
+                    OpenAIService.generateResearchPage(originalTopic, questions, answers),
+                    GeminiService.generateResearchPage(originalTopic, questions, answers).catch((e) => {
+                        console.error('Gemini generation failed:', e)
+                        return { success: false }
+                    })
+                ])
+            } catch (e) {
+                console.error('Parallel research generation error:', e)
+            }
+
+            if (researchResult.success) {
+                console.log('OpenAI research page generated successfully')
+                const openaiLabeled = `## ChatGPT (OpenAI) Research\n\n${researchResult.researchPage}`
+                const geminiLabeled = (geminiResult && geminiResult.success && geminiResult.researchPage)
+                  ? `## Gemini (Google) Research\n\n${geminiResult.researchPage}`
+                  : null
+
+                // Save OpenAI first so ChatGPT appears before Gemini in the UI
+                await messageQueries.create(chatId, openaiLabeled, false)
+                // Save Gemini after OpenAI (if present)
+                if (geminiLabeled) {
+                    await messageQueries.create(chatId, geminiLabeled, false)
+                }
+
+                // Mark chat as completed after both saved
+                await chatQueries.markAsCompleted(chatId)
+                console.log('Chat marked as completed in database')
+
+                // Return both sections so client can render immediately without refresh
+                res.json({ 
+                    success: true, 
+                    messageType: 'research_pages',
+                    openaiResearch: openaiLabeled,
+                    geminiResearch: geminiLabeled,
+                    user: req.session.username 
+                })
+            } else {
+                console.log('Failed to generate research page, using error response');
+                const errorResponse = "I'm not able to find the answer right now. Please try again.";
+                await messageQueries.create(chatId, errorResponse, false);
+                
+                // Mark chat as having an error
+                await chatQueries.markAsError(chatId);
+                console.log('Chat marked as error in database');
+                
+                res.json({ 
+                    success: true, 
+                    response: errorResponse,
+                    user: req.session.username 
+                });
+            }
+        } else {
+            console.log('More questions to answer, providing acknowledgment');
+            // More questions to answer
+            const responseText = `Thank you for your answer. Please answer the next question.`;
+            await messageQueries.create(chatId, responseText, false);
+            
+            res.json({ 
+                success: true, 
+                response: responseText,
+                messageType: 'acknowledgment',
+                user: req.session.username 
+            });
+        }
+    } catch (error) {
+        console.error('Clarification answer error:', error);
+        res.status(500).json({ success: false, error: 'Failed to process clarification answer' });
+    }
+});
+
+// Legacy endpoint for backward compatibility
+app.post("/api/chats/:chatId/messages", requireAuth, async (req, res) => {
+    try {
+        console.log('=== LEGACY MESSAGE ENDPOINT ===');
+        const { chatId } = req.params;
+        const { message, messageType = 'regular' } = req.body;
+        const userId = req.session.userId;
+        
+        console.log('Legacy endpoint called:', { chatId, userId, message, messageType });
+        
+        // Verify chat belongs to user
+        const chat = await chatQueries.findById(chatId);
+        if (!chat || chat.user_id !== userId) {
+            console.log('Chat not found or unauthorized:', { chatId, userId });
             return res.status(404).json({ success: false, error: 'Chat not found' });
         }
         
         // Save user message
         await messageQueries.create(chatId, message, true);
+        console.log('User message saved to database');
         
-        // Simulate AI response
-        const responses = [
-            "I understand your question. Let me help you with that!",
-            "That's an interesting point. Here's what I think...",
-            "I can help you with that. Let me provide some information.",
-            "Great question! Here's my response...",
-            "I'd be happy to assist you with that topic."
-        ];
+        // For legacy compatibility, treat as research topic
+        console.log('Treating as research topic for legacy compatibility');
         
-        const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+        // Generate both title and clarifying questions in a single API call
+        console.log('Generating title and clarifying questions...');
+        const result = await OpenAIService.generateTitleAndQuestions(message);
         
-        // Save AI response
-        const aiMessage = await messageQueries.create(chatId, randomResponse, false);
-        
-        res.json({ 
-            success: true, 
-            response: randomResponse,
-            user: req.session.username 
-        });
+        if (result.success) {
+            const generatedTitle = result.title;
+            const questions = result.questions;
+            console.log('Generated title:', generatedTitle);
+            console.log('Generated questions:', questions);
+            
+            // Update chat title
+            await chatQueries.updateTitle(chatId, generatedTitle);
+            console.log('Chat title updated in database');
+            
+            const responseText = `I'd like to help you refine your research topic. To provide you with the most relevant research guidance, I have a few clarifying questions:\n\n${questions.map((q, i) => `${i + 1}. ${q}`).join('\n\n')}\n\nPlease answer these questions one by one, and I'll create a comprehensive research plan for you.`;
+            
+            // Save AI response
+            await messageQueries.create(chatId, responseText, false);
+            console.log('AI response saved to database');
+            
+            res.json({ 
+                success: true, 
+                response: responseText,
+                messageType: 'clarifying_questions',
+                questions: questions,
+                title: generatedTitle,
+                user: req.session.username 
+            });
+        } else {
+            console.log('Failed to generate title and questions, using error response');
+            const errorResponse = "I'm not able to find the answer right now. Please try again.";
+            await messageQueries.create(chatId, errorResponse, false);
+            
+            // Mark chat as having an error
+            await chatQueries.markAsError(chatId);
+            console.log('Chat marked as error in database');
+            
+            res.json({ 
+                success: true, 
+                response: errorResponse,
+                title: 'Research Topic...',
+                user: req.session.username 
+            });
+        }
     } catch (error) {
-        console.error('Send message error:', error);
+        console.error('Legacy message error:', error);
         res.status(500).json({ success: false, error: 'Failed to send message' });
     }
 });
@@ -375,6 +660,91 @@ app.get("/api/user/chat-count", requireAuth, async (req, res) => {
     } catch (error) {
         console.error('Get chat count error:', error);
         res.status(500).json({ success: false, error: 'Failed to get chat count' });
+    }
+});
+
+// Email endpoint to send research report
+app.post("/api/chats/:chatId/send-email", requireAuth, async (req, res) => {
+    try {
+        console.log('=== EMAIL ENDPOINT ===');
+        const { chatId } = req.params;
+        const userId = req.session.userId;
+        
+        // Verify chat belongs to user
+        const chat = await chatQueries.findById(chatId);
+        if (!chat || chat.user_id !== userId) {
+            return res.status(404).json({ success: false, error: 'Chat not found' });
+        }
+        
+        // Get user email
+        const user = await userQueries.findById(userId);
+        if (!user || !user.email) {
+            return res.status(400).json({ success: false, error: 'User email not found' });
+        }
+        
+        // Get all messages for the chat
+        const messages = await messageQueries.findByChatId(chatId);
+        if (!messages || messages.length === 0) {
+            return res.status(400).json({ success: false, error: 'No messages found in chat' });
+        }
+        
+        // Find labeled AI messages for ChatGPT and Gemini
+        const aiMessages = messages.filter(msg => !msg.is_user)
+        const openaiMsg = aiMessages.find(m => (m.content || '').startsWith('## ChatGPT (OpenAI) Research')) || aiMessages[0]
+        const geminiMsg = aiMessages.find(m => (m.content || '').startsWith('## Gemini (Google) Research')) || null
+        if (!openaiMsg) {
+            return res.status(400).json({ success: false, error: 'No research report found' });
+        }
+        
+        // Get the original topic (first user message)
+        const originalTopic = messages
+            .filter(msg => msg.is_user)
+            .shift()?.content || 'Research Topic';
+        
+        console.log('=== Sending email ===', { 
+            userEmail: user.email, 
+            topic: originalTopic,
+            reportLength: (openaiMsg?.content || '').length 
+        });
+        
+        // Use already-generated contents when available; otherwise generate Gemini now
+        const chatgptContent = openaiMsg.content
+        let geminiContent = geminiMsg ? geminiMsg.content : ''
+        if (!geminiContent) {
+            try {
+                const firstAi = aiMessages[0]?.content || ''
+                const clarifyingQuestions = []
+                if (firstAi) {
+                    const matches = firstAi.split('\n').filter(l => /^\d+\.\s/.test(l)).map(l => l.replace(/^\d+\.\s/, ''))
+                    if (matches.length) clarifyingQuestions.push(...matches)
+                }
+                const userAnswers = messages.filter(m => m.is_user).slice(1).map(m => m.content)
+                const gemini = await GeminiService.generateResearchPage(originalTopic, clarifyingQuestions, userAnswers)
+                if (gemini.success) {
+                    geminiContent = `## Gemini (Google) Research\n\n${gemini.researchPage || ''}`
+                }
+            } catch (e) {
+                console.error('Gemini generation failed, proceeding without Gemini section', e)
+            }
+        }
+        const result = await sendCombinedResearchReportSendGrid(
+            user.email,
+            chatgptContent,
+            geminiContent || '## Gemini (Google) Research\n\nNo Gemini content available.',
+            originalTopic
+        )
+
+        console.log('=== Combined email sent successfully ===', result)
+
+        res.json({ success: true, message: 'Research report sent successfully', messageId: result.messageId, summary: result.summary })
+        
+    } catch (error) {
+        console.error('=== Email endpoint error ===', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to send research report',
+            details: error.message 
+        });
     }
 });
 

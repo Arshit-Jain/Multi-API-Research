@@ -1,7 +1,7 @@
 .sidebar {
   width: 260px;
-  background-color: #171717;
-  border-right: 1px solid #2d2d2d;
+  background-color: #E8E0D5;
+  border-right: 1px solid #C2A68C;
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -11,13 +11,13 @@
 
 .sidebar-header {
   padding: 16px;
-  border-bottom: 1px solid #2d2d2d;
+  border-bottom: 1px solid #C2A68C;
 }
 
 .new-chat-btn {
   width: 100%;
-  background-color: #40414f;
-  color: white;
+  background-color: #5D866C;
+  color: #F5F5F0;
   border: none;
   padding: 12px 16px;
   border-radius: 8px;
@@ -31,7 +31,7 @@
 }
 
 .new-chat-btn:hover {
-  background-color: #4a4b5a;
+  background-color: #C2A68C;
 }
 
 .new-chat-btn span {
@@ -40,15 +40,15 @@
 }
 
 .new-chat-btn:disabled {
-  background-color: #2d2d2d;
-  color: #8e8ea0;
+  background-color: #C2A68C;
+  color: #F5F5F0;
   cursor: not-allowed;
 }
 
 .chat-limit-info {
   margin-top: 12px;
   padding: 8px;
-  background-color: #2d2d2d;
+  background-color: #F0E8DC;
   border-radius: 6px;
   text-align: center;
 }
@@ -60,16 +60,16 @@
 }
 
 .limit-badge.premium {
-  color: #ffd700;
+  color: #5D866C;
 }
 
 .limit-badge.free {
-  color: #8e8ea0;
+  color: #C2A68C;
 }
 
 .limit-text {
   font-size: 11px;
-  color: #8e8ea0;
+  color: #2D2D2D;
 }
 
 .chat-history {
@@ -80,7 +80,7 @@
 
 .chat-history h3 {
   font-size: 14px;
-  color: #8e8ea0;
+  color: #2D2D2D;
   margin-bottom: 12px;
   font-weight: 500;
 }
@@ -96,16 +96,16 @@
 }
 
 .chat-item:hover {
-  background-color: #2d2d2d;
+  background-color: #C2A68C;
 }
 
 .chat-item.active {
-  background-color: #40414f;
+  background-color: #5D866C;
 }
 
 .chat-title {
   font-size: 14px;
-  color: #ffffff;
+  color: #2D2D2D;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -113,7 +113,7 @@
 
 .sidebar-footer {
   padding: 16px;
-  border-top: 1px solid #2d2d2d;
+  border-top: 1px solid #C2A68C;
 }
 
 .account-section {
@@ -128,13 +128,13 @@
   gap: 12px;
   padding: 8px;
   border-radius: 8px;
-  background-color: #2d2d2d;
+  background-color: #F0E8DC;
 }
 
 .avatar {
   width: 32px;
   height: 32px;
-  background-color: #40414f;
+  background-color: #5D866C;
   border-radius: 50%;
   display: flex;
   align-items: center;

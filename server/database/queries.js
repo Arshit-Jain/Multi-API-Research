@@ -61,6 +61,22 @@ export const chatQueries = {
     return result.rows[0]
   },
 
+  async markAsCompleted(chatId) {
+    const result = await pool.query(
+      'UPDATE chats SET is_completed = TRUE, has_error = FALSE, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
+      [chatId]
+    )
+    return result.rows[0]
+  },
+
+  async markAsError(chatId) {
+    const result = await pool.query(
+      'UPDATE chats SET has_error = TRUE, is_completed = FALSE, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
+      [chatId]
+    )
+    return result.rows[0]
+  },
+
   async delete(chatId) {
     await pool.query('DELETE FROM chats WHERE id = $1', [chatId])
   }

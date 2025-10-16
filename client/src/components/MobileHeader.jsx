@@ -8,7 +8,7 @@ const MobileHeader = ({ onNewChat, onMenuToggle }) => {
         <span></span>
         <span></span>
       </button>
-      <h1 className="app-title">ChatGPT Clone</h1>
+      <h1 className="app-title">Multi API Research</h1>
       <button className="mobile-new-chat-btn" onClick={onNewChat}>
         <span>+</span>
       </button>

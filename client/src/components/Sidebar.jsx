@@ -42,7 +42,6 @@ const Sidebar = ({ chats, activeChat, onChatSelect, onNewChat, isOpen, onClose, 
               <span>{user?.username || 'User Account'}</span>
             </div>
             <div className="account-options">
-              <button className="account-btn">Settings</button>
               <button className="account-btn" onClick={onLogout}>Logout</button>
             </div>
           </div>

@@ -11,17 +11,18 @@ const ChatApp = ({
   newMessage,
   user,
   sidebarOpen,
-  isMobile,
   onNewChat,
   onChatSelect,
   onSendMessage,
   onMessageChange,
   onKeyPress,
+  onSendEmail,
   onToggleSidebar,
   onCloseSidebar,
   onLogout,
   chatCount,
-  loading
+  loading,
+  researchState
 }) => {
   const [shouldFocus, setShouldFocus] = useState(false)
   const messagesEndRef = useRef(null)
@@ -95,9 +96,43 @@ const ChatApp = ({
                 isUser={message.isUser}
               />
             ))}
+            
+            {/* Loading indicator when API is processing */}
+            {loading && (
+              <div className="message-bubble ai">
+                <div className="message-content loading-message">
+                  <div className="typing-indicator">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                  <p>Thinking...</p>
+                </div>
+              </div>
+            )}
+            
             {/* Invisible element at the bottom to scroll to */}
             <div ref={messagesEndRef} />
           </div>
+          
+          {/* Email button - show when research is completed */}
+          {researchState.isCompleted && !researchState.hasError && (
+            <div className="email-section">
+              <div className="email-container">
+                <div className="email-info">
+                  <h3>📧 Research Report Ready</h3>
+                  <p>Your research report has been completed. Would you like to receive it via email as a PDF?</p>
+                </div>
+                <button 
+                  className="email-btn"
+                  onClick={onSendEmail}
+                  disabled={loading}
+                >
+                  {loading ? 'Sending...' : '📧 Send Report via Email'}
+                </button>
+              </div>
+            </div>
+          )}
           
           <ChatInput 
             message={newMessage}
@@ -105,6 +140,7 @@ const ChatApp = ({
             onSendMessage={onSendMessage}
             onKeyPress={onKeyPress}
             autoFocus={shouldFocus}
+            researchState={researchState}
           />
         </div>
       </div>

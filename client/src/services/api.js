@@ -91,11 +91,74 @@ export const chatAPI = {
     }
   },
 
-  async sendMessage(chatId, message) {
+  async getChatInfo(chatId) {
     try {
-      const response = await apiClient.post(`/api/chats/${chatId}/messages`, { message })
+      console.log('=== API: Getting chat info ===', { chatId });
+      const response = await apiClient.get(`/api/chats/${chatId}`)
+      console.log('=== API: Chat info response ===', response.data);
       return response.data
     } catch (error) {
+      console.error('=== API: Chat info error ===', error);
+      if (error.response?.status === 401) {
+        throw new Error('Authentication required')
+      }
+      throw error
+    }
+  },
+
+  async sendMessage(chatId, message, messageType = 'regular', additionalData = {}) {
+    try {
+      console.log('=== API: Sending message ===', { chatId, message, messageType, additionalData });
+      const response = await apiClient.post(`/api/chats/${chatId}/messages`, { 
+        message, 
+        messageType,
+        ...additionalData 
+      })
+      console.log('=== API: Message response ===', response.data);
+      return response.data
+    } catch (error) {
+      console.error('=== API: Message error ===', error);
+      if (error.response?.status === 401) {
+        throw new Error('Authentication required')
+      }
+      throw error
+    }
+  },
+
+  async sendResearchTopic(chatId, message) {
+    try {
+      console.log('=== API: Sending research topic ===', { chatId, message });
+      const response = await apiClient.post(`/api/chats/${chatId}/research-topic`, { 
+        message 
+      })
+      console.log('=== API: Research topic response ===', response.data);
+      return response.data
+    } catch (error) {
+      console.error('=== API: Research topic error ===', error);
+      if (error.response?.status === 401) {
+        throw new Error('Authentication required')
+      }
+      throw error
+    }
+  },
+
+  async sendClarificationAnswer(chatId, message, questionIndex, totalQuestions, originalTopic, questions, answers) {
+    try {
+      console.log('=== API: Sending clarification answer ===', { 
+        chatId, message, questionIndex, totalQuestions, originalTopic, questions, answers 
+      });
+      const response = await apiClient.post(`/api/chats/${chatId}/clarification-answer`, { 
+        message,
+        questionIndex,
+        totalQuestions,
+        originalTopic,
+        questions,
+        answers
+      })
+      console.log('=== API: Clarification answer response ===', response.data);
+      return response.data
+    } catch (error) {
+      console.error('=== API: Clarification answer error ===', error);
       if (error.response?.status === 401) {
         throw new Error('Authentication required')
       }
@@ -106,6 +169,18 @@ export const chatAPI = {
   async getChatCount() {
     try {
       const response = await apiClient.get('/api/user/chat-count')
+      return response.data
+    } catch (error) {
+      if (error.response?.status === 401) {
+        throw new Error('Authentication required')
+      }
+      throw error
+    }
+  },
+
+  async sendResearchReport(chatId) {
+    try {
+      const response = await apiClient.post(`/api/chats/${chatId}/send-email`)
       return response.data
     } catch (error) {
       if (error.response?.status === 401) {

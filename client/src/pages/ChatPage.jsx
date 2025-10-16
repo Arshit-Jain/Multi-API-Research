@@ -1,4 +1,3 @@
-// Chat.jsx - Fixed version (no auto-create on refresh)
 import { useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ChatApp from '../components/ChatApp'
@@ -23,6 +22,12 @@ const ChatPage = () => {
   const handleSendMessage = async () => {
     try {
       if (!chat.newMessage.trim()) return
+      
+      // Check if chat is completed or has error - prevent sending messages
+      if (chat.researchState.isCompleted || chat.researchState.hasError) {
+        console.log('=== ChatPage: Blocking message send - chat completed or has error ===');
+        return
+      }
 
       // If there's an active chat, send message to it
       if (chat.activeChat) {
@@ -100,11 +105,13 @@ const ChatPage = () => {
       onSendMessage={handleSendMessage}
       onMessageChange={chat.handleMessageChange}
       onKeyPress={chat.handleKeyPress}
+      onSendEmail={chat.handleSendEmail}
       onToggleSidebar={ui.toggleSidebar}
       onCloseSidebar={ui.closeSidebar}
       onLogout={handleLogout}
       chatCount={chat.chatCount}
       loading={chat.loading}
+      researchState={chat.researchState}
     />
   )
 }
