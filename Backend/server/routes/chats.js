@@ -6,6 +6,58 @@ import { GeminiService } from "../services/gemini.js";
 
 const router = express.Router();
 
+// Helper function to clean up research content for better PDF formatting
+function cleanResearchContent(content, provider) {
+  if (!content) return '';
+  
+  // Remove duplicate headers and clean up formatting
+  let cleaned = content
+    // Remove duplicate provider headers and variations
+    .replace(new RegExp(`^#+\\s*${provider}[\\s\\n]*Research[\\s\\n]*`, 'gmi'), '')
+    .replace(new RegExp(`^#+\\s*${provider}[\\s\\n]*`, 'gmi'), '')
+    .replace(/^#+\s*Research\s*Page:?\s*/gmi, '')
+    .replace(/^#+\s*Comparative\s*Analysis\s*/gmi, '')
+    // Remove "I'd like to help you..." preamble from ChatGPT
+    .replace(/^I'd like to help you.*?comprehensive research (?:for you|plan for you)\.?\s*/gis, '')
+    .replace(/^I'd like to help you.*?Please answer.*?one by one.*?\.?\s*/gis, '')
+    // Remove clarifying questions sections
+    .replace(/^#+\s*Clarifying Questions.*?(?=^#+\s*[A-Z]|\n\n[A-Z])/gims, '')
+    .replace(/To provide you with.*?I have.*?questions:?\s*/gi, '')
+    .replace(/Please answer.*?questions.*?one by one.*?\./gi, '')
+    // Remove methodology suggestion sections (these are advice, not research)
+    .replace(/^#+\s*Proposed Methodology.*?(?=^#+\s*[A-Z])/gims, '')
+    .replace(/^#+\s*Research Methodology.*?(?=^#+\s*[A-Z])/gims, '')
+    .replace(/^#+\s*Suggested Research Methods?.*?(?=^#+\s*[A-Z])/gims, '')
+    // Remove numbered question lists
+    .replace(/\n\d+\.\s+(?:Which|What|How|Are|Do|Does|Is|Can|Should|Would|Will)[^\n]+\?/g, '')
+    // Remove ALL markdown bold formatting (multiple aggressive patterns)
+    .replace(/\*\*\*([^*]+)\*\*\*/g, '$1')  // Triple asterisks
+    .replace(/\*\*([^*]+)\*\*/g, '$1')       // Double asterisks
+    .replace(/\*\*([^*\n]+)\*\*/g, '$1')     // Double asterisks (no newline)
+    .replace(/\*\*([^*\n]*?)\*\*/g, '$1')    // Double asterisks (lazy)
+    .replace(/\*\*([^*]*?)\*\*/g, '$1')      // Double asterisks (very lazy)
+    .replace(/\*([^*]+)\*/g, '$1')           // Single asterisks
+    .replace(/\*\*/g, '')                     // Any remaining **
+    .replace(/\*/g, '')                       // Any remaining *
+    // Second pass to catch any that got through
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*\*/g, '')
+    // Third pass for nested or complex cases
+    .replace(/\*+([^*\n]+)\*+/g, '$1')
+    // Clean up links - make them more readable
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)')
+    // Remove extra whitespace and line breaks
+    .replace(/\n{3,}/g, '\n\n')
+    // Clean up numbered lists formatting
+    .replace(/^\d+\)\s*/gm, '- ')
+    .replace(/^\d+\.\s*/gm, '- ')
+    // Remove extra spaces
+    .replace(/[ \t]+$/gm, '')
+    .trim();
+  
+  return cleaned;
+}
+
 // ===== Get all chats for user =====
 router.get("/", async (req, res) => {
   try {
@@ -111,7 +163,7 @@ router.post("/:chatId/research-topic", async (req, res) => {
 
       const responseText = `I'd like to help you refine your research topic. To provide you with the most relevant research guidance, I have a few clarifying questions:\n\n${questions
         .map((q, i) => `${i + 1}. ${q}`)
-        .join("\n\n")}\n\nPlease answer these questions one by one, and I'll create a comprehensive research plan for you.`;
+        .join("\n\n")}\n\nPlease answer these questions one by one, and I'll do a comprehensive research for you.`;
 
       await messageQueries.create(chatId, responseText, false);
 
@@ -168,11 +220,41 @@ router.post("/:chatId/clarification-answer", async (req, res) => {
       }
 
       if (researchResult.success) {
-        const openaiLabeled = `## ChatGPT (OpenAI) Research\n\n${researchResult.researchPage}`;
-        const geminiLabeled =
-          geminiResult?.success && geminiResult.researchPage
-            ? `## Gemini (Google) Research\n\n${geminiResult.researchPage}`
-            : null;
+        // Clean up the research content for better formatting
+        const cleanedOpenAI = cleanResearchContent(researchResult.researchPage, 'ChatGPT|OpenAI');
+        const cleanedGemini = geminiResult?.success && geminiResult.researchPage 
+          ? cleanResearchContent(geminiResult.researchPage, 'Gemini|Google')
+          : null;
+        
+        // Additional aggressive cleaning for Gemini content - multiple passes
+        let finalGemini = cleanedGemini;
+        if (finalGemini) {
+          // Pass 1: Standard cleaning
+          finalGemini = finalGemini
+            .replace(/\*\*\*([^*]+)\*\*\*/g, '$1')
+            .replace(/\*\*([^*]+)\*\*/g, '$1')
+            .replace(/\*([^*]+)\*/g, '$1')
+            .replace(/\*\*/g, '')
+            .replace(/\*/g, '');
+          
+          // Pass 2: Aggressive cleaning for any remaining
+          finalGemini = finalGemini
+            .replace(/\*\*([^*\n]*?)\*\*/g, '$1')
+            .replace(/\*\*([^*]*?)\*\*/g, '$1')
+            .replace(/\*+([^*\n]+)\*+/g, '$1')
+            .replace(/\*+/g, '');
+          
+          // Pass 3: Final cleanup
+          finalGemini = finalGemini
+            .replace(/\*\*/g, '')
+            .replace(/\*/g, '')
+            .trim();
+        }
+
+        const openaiLabeled = `# ChatGPT (OpenAI) Research\n\n${cleanedOpenAI}`;
+        const geminiLabeled = finalGemini 
+          ? `# Gemini (Google) Research\n\n${finalGemini}`
+          : null;
 
         await messageQueries.create(chatId, openaiLabeled, false);
         if (geminiLabeled) await messageQueries.create(chatId, geminiLabeled, false);
