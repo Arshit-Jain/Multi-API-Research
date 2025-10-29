@@ -1,4 +1,4 @@
-# 🧠 AI Research Assistant – Dual AI Research Platform
+# AI Research Assistant – Dual AI Research Platform
 **A full-stack web app combining ChatGPT (OpenAI) and Gemini (Google AI) for dual-perspective research reports.**
 
 ---
@@ -375,12 +375,7 @@ npm run setup-db
 
 ---
 
-## 🧾 License
-This project is licensed under the **MIT License**.
-
----
-
 ## ✨ Author
 **Arshit Jain**  
 💻 Full-stack Developer | AI Enthusiast  
-📧 [Contact via Email](mailto:noreply@yourdomain.com)
+📧 [Contact via Email](arshit@ualberta.ca)
