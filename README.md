@@ -1,140 +1,133 @@
-================================================================================
-  AI RESEARCH ASSISTANT - DUAL AI RESEARCH PLATFORM
-================================================================================
+# 🧠 AI Research Assistant – Dual AI Research Platform
+**A full-stack web app combining ChatGPT (OpenAI) and Gemini (Google AI) for dual-perspective research reports.**
 
-A full-stack application combining ChatGPT (OpenAI) and Gemini (Google AI)
-for comprehensive dual-perspective research reports.
+---
 
-================================================================================
-  TECHNOLOGY STACK
-================================================================================
+## 🚀 Tech Stack
 
-FRONTEND
-  - React 19.1.1          | Modern UI framework
-  - Vite 7.1.7            | Fast build tool
-  - React Router 7.9.4    | Client-side routing
-  - Axios 1.12.2          | HTTP client with JWT
-  - CSS Modules           | Scoped styling
+| **Frontend** | **Backend** | **Database & Auth** | **Integrations** |
+|---------------|-------------|----------------------|------------------|
+| React 19.1.1 | Node.js + Express 4.21 | PostgreSQL | OpenAI API (ChatGPT) |
+| Vite 7.1.7 | Passport.js 0.7.0 | JWT + bcryptjs | Google Generative AI (Gemini) |
+| React Router 7.9.4 | PDFKit 0.15.0 |  | SendGrid Email |
+| Axios 1.12.2 |  |  |  |
+| CSS Modules |  |  |  |
 
-BACKEND
-  - Node.js + Express 4.21 | REST API server
-  - PostgreSQL            | Relational database
-  - Passport.js 0.7.0     | Authentication
-  - JWT (jsonwebtoken)    | Token-based auth
-  - OpenAI 6.6.0          | ChatGPT integration
-  - Google Generative AI  | Gemini integration
-  - SendGrid 8.1.3        | Email service
-  - PDFKit 0.15.0         | PDF generation
-  - bcryptjs 2.4.3        | Password hashing
+---
 
-================================================================================
-  DATABASE SCHEMA (PostgreSQL)
-================================================================================
+## 🧩 Database Schema (PostgreSQL)
 
-┌────────────────────────────────────────────────────────────────────────┐
-│ TABLE: users                                                            │
-├──────────────────┬─────────────────────────────────┬───────────────────┤
-│ id               │ SERIAL PRIMARY KEY              │                   │
-│ username         │ VARCHAR(50) UNIQUE NOT NULL     │                   │
-│ email            │ VARCHAR(100) UNIQUE NOT NULL    │                   │
-│ password_hash    │ VARCHAR(255) NOT NULL           │ bcrypt hashed     │
-│ is_premium       │ BOOLEAN DEFAULT FALSE           │ 5 vs 20 chats/day │
-│ created_at       │ TIMESTAMP DEFAULT NOW()         │                   │
-│ updated_at       │ TIMESTAMP DEFAULT NOW()         │                   │
-└──────────────────┴─────────────────────────────────┴───────────────────┘
+### **users**
+| Column | Type | Details |
+|--------|------|----------|
+| id | SERIAL PRIMARY KEY | |
+| username | VARCHAR(50) UNIQUE NOT NULL | |
+| email | VARCHAR(100) UNIQUE NOT NULL | |
+| password_hash | VARCHAR(255) NOT NULL | bcrypt-hashed |
+| is_premium | BOOLEAN DEFAULT FALSE | 5 vs 20 chats/day |
+| created_at | TIMESTAMP DEFAULT NOW() | |
+| updated_at | TIMESTAMP DEFAULT NOW() | |
 
-┌────────────────────────────────────────────────────────────────────────┐
-│ TABLE: chats                                                            │
-├──────────────────┬─────────────────────────────────┬───────────────────┤
-│ id               │ SERIAL PRIMARY KEY              │                   │
-│ user_id          │ INTEGER REFERENCES users(id)    │ ON DELETE CASCADE │
-│ title            │ VARCHAR(255) NOT NULL           │ AI-generated      │
-│ is_completed     │ BOOLEAN DEFAULT FALSE           │ Research complete │
-│ has_error        │ BOOLEAN DEFAULT FALSE           │ Error occurred    │
-│ created_at       │ TIMESTAMP DEFAULT NOW()         │                   │
-│ updated_at       │ TIMESTAMP DEFAULT NOW()         │                   │
-└──────────────────┴─────────────────────────────────┴───────────────────┘
+---
 
-┌────────────────────────────────────────────────────────────────────────┐
-│ TABLE: messages                                                         │
-├──────────────────┬─────────────────────────────────┬───────────────────┤
-│ id               │ SERIAL PRIMARY KEY              │                   │
-│ chat_id          │ INTEGER REFERENCES chats(id)    │ ON DELETE CASCADE │
-│ content          │ TEXT NOT NULL                   │ Message text      │
-│ is_user          │ BOOLEAN NOT NULL                │ User vs AI        │
-│ created_at       │ TIMESTAMP DEFAULT NOW()         │                   │
-└──────────────────┴─────────────────────────────────┴───────────────────┘
+### **chats**
+| Column | Type | Details |
+|--------|------|----------|
+| id | SERIAL PRIMARY KEY | |
+| user_id | INTEGER REFERENCES users(id) ON DELETE CASCADE | |
+| title | VARCHAR(255) NOT NULL | AI-generated |
+| is_completed | BOOLEAN DEFAULT FALSE | |
+| has_error | BOOLEAN DEFAULT FALSE | |
+| created_at | TIMESTAMP DEFAULT NOW() | |
+| updated_at | TIMESTAMP DEFAULT NOW() | |
 
-┌────────────────────────────────────────────────────────────────────────┐
-│ TABLE: user_daily_chats                                                 │
-├──────────────────┬─────────────────────────────────┬───────────────────┤
-│ id               │ SERIAL PRIMARY KEY              │                   │
-│ user_id          │ INTEGER REFERENCES users(id)    │ ON DELETE CASCADE │
-│ date             │ DATE NOT NULL                   │                   │
-│ chat_count       │ INTEGER DEFAULT 0               │ Daily counter     │
-│ created_at       │ TIMESTAMP DEFAULT NOW()         │                   │
-│                  │ UNIQUE(user_id, date)           │ One row per day   │
-└──────────────────┴─────────────────────────────────┴───────────────────┘
+---
 
-RELATIONSHIPS:
-  users (1) ────< (N) chats ────< (N) messages
-  users (1) ────< (N) user_daily_chats
+### **messages**
+| Column | Type | Details |
+|--------|------|----------|
+| id | SERIAL PRIMARY KEY | |
+| chat_id | INTEGER REFERENCES chats(id) ON DELETE CASCADE | |
+| content | TEXT NOT NULL | |
+| is_user | BOOLEAN NOT NULL | User or AI |
+| created_at | TIMESTAMP DEFAULT NOW() | |
 
-INDEXES:
-  - idx_chats_user_id ON chats(user_id)
-  - idx_messages_chat_id ON messages(chat_id)
-  - idx_user_daily_chats_user_date ON user_daily_chats(user_id, date)
+---
 
-================================================================================
-  INSTALLATION GUIDE
-================================================================================
+### **user_daily_chats**
+| Column | Type | Details |
+|--------|------|----------|
+| id | SERIAL PRIMARY KEY | |
+| user_id | INTEGER REFERENCES users(id) ON DELETE CASCADE | |
+| date | DATE NOT NULL | |
+| chat_count | INTEGER DEFAULT 0 | Daily counter |
+| created_at | TIMESTAMP DEFAULT NOW() | |
+| UNIQUE(user_id, date) | | One row per day |
 
-PREREQUISITES
-  ✓ Node.js v18 or higher
-  ✓ PostgreSQL 12 or higher
-  ✓ npm or yarn
-  ✓ OpenAI API key (ChatGPT)
-  ✓ Google AI API key (Gemini)
-  ✓ SendGrid API key (Email)
-  ✓ Google OAuth credentials (Optional)
+---
 
---------------------------------------------------------------------------------
-STEP 1: CLONE REPOSITORY
---------------------------------------------------------------------------------
+**Relationships**
+```
+users (1) ───< (N) chats ───< (N) messages  
+users (1) ───< (N) user_daily_chats
+```
 
+**Indexes**
+```
+idx_chats_user_id ON chats(user_id)
+idx_messages_chat_id ON messages(chat_id)
+idx_user_daily_chats_user_date ON user_daily_chats(user_id, date)
+```
+
+---
+
+## ⚙️ Installation Guide
+
+### **Prerequisites**
+- Node.js v18+
+- PostgreSQL 12+
+- npm or yarn
+- OpenAI API key
+- Google AI API key
+- SendGrid API key
+- (Optional) Google OAuth credentials
+
+---
+
+### **Step 1: Clone Repository**
+```bash
 git clone <repository-url>
 cd project-root
+```
 
---------------------------------------------------------------------------------
-STEP 2: BACKEND SETUP
---------------------------------------------------------------------------------
+---
 
-# Navigate to backend
+### **Step 2: Backend Setup**
+```bash
 cd Backend/server
-
-# Install dependencies
 npm install
+```
 
-# Create PostgreSQL database
+Create your database:
+```bash
 psql -U postgres -c "CREATE DATABASE multi-api-research;"
+```
 
-# Or using Supabase (recommended for deployment)
-# Get connection string from Supabase dashboard
+Or use **Supabase** (recommended):
+```env
+SUPABASE_DB_URL=postgresql://user:pass@db.project.supabase.co:5432/postgres
+```
 
-# Create environment file
-
+Create `.env` file:
+```env
 # ============================================
 # DATABASE CONFIGURATION
 # ============================================
-# Option A: Supabase (recommended)
-SUPABASE_DB_URL=postgresql://user:pass@db.project.supabase.co:5432/postgres
-
-# Option B: Local PostgreSQL
-# DB_HOST=localhost
-# DB_PORT=5432
-# DB_NAME=multi-api-research
-# DB_USER=postgres
-# DB_PASSWORD=your_password
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=multi-api-research
+DB_USER=postgres
+DB_PASSWORD=your_password
 
 # ============================================
 # SERVER CONFIGURATION
@@ -147,15 +140,14 @@ FRONTEND_URL=http://localhost:5173
 # ============================================
 # AUTHENTICATION
 # ============================================
-SESSION_SECRET=generate-random-string-here
-JWT_SECRET=generate-random-jwt-secret-here
+SESSION_SECRET=generate-random-string
+JWT_SECRET=generate-random-jwt-secret
 
 # ============================================
 # AI SERVICES
 # ============================================
 OPENAI_API_KEY=sk-...your-openai-api-key
 CHATGPT_MODEL=gpt-4o
-
 GEMINI_API_KEY=...your-gemini-api-key
 GEMINI_MODEL=gemini-2.0-flash-exp
 
@@ -168,286 +160,227 @@ FROM_EMAIL=noreply@yourdomain.com
 # ============================================
 # GOOGLE OAUTH (Optional)
 # ============================================
-GOOGLE_CLIENT_ID=your-google-oauth-client-id
-GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+```
 
-# Initialize database (creates tables and demo users)
+Initialize database:
+```bash
 npm run setup-db
+```
 
-# Output:
-# ✅ Database setup completed successfully!
-# 📊 Tables created:
-#   - users (with premium support)
-#   - chats (user chat history)
-#   - messages (chat messages)
-#   - user_daily_chats (daily limits)
-# 
-# 💡 Free users: 5 chats/day
-
-# Start backend server
+Start server:
+```bash
 npm start
+```
+✅ Runs at [http://localhost:3000](http://localhost:3000)
 
-# Server starts on http://localhost:3000
-# ✅ Database connection test successful
-# ✅ Routes registered successfully
+---
 
---------------------------------------------------------------------------------
-STEP 3: FRONTEND SETUP
---------------------------------------------------------------------------------
-
-# Open new terminal
+### **Step 3: Frontend Setup**
+```bash
 cd Frontend/client
-
-# Install dependencies
 npm install
+```
 
-# Create environment file
+Create `.env`:
+```env
 VITE_API_URL=http://localhost:3000
+```
 
-# Start development server
+Run dev server:
+```bash
 npm run dev
+```
 
-# Output:
-#   VITE v7.1.7  ready in 500 ms
-#   ➜  Local:   http://localhost:5173/
-#   ➜  Network: use --host to expose
+✅ Runs at [http://localhost:5173](http://localhost:5173)
 
---------------------------------------------------------------------------------
-STEP 4: ACCESS APPLICATION
---------------------------------------------------------------------------------
+---
 
-Open browser: http://localhost:5173
+## 🧠 Research Workflow
 
-================================================================================
-  RESEARCH WORKFLOW
-================================================================================
+| Step | Description |
+|------|--------------|
+| 1️⃣ | User submits a research topic |
+| 2️⃣ | ChatGPT generates clarifying questions |
+| 3️⃣ | User answers those questions |
+| 4️⃣ | Dual AI (ChatGPT + Gemini) generate parallel research |
+| 5️⃣ | Frontend polls every 2 seconds for updates |
+| 6️⃣ | User can email themselves a PDF report (SendGrid) |
 
-STEP-BY-STEP PROCESS:
+---
 
-1. USER SUBMITS TOPIC
-   └─> Enter research question or topic
-   └─> Example: "Impact of AI on healthcare"
+## 🔗 API Endpoints
 
-2. AI GENERATES CLARIFYING QUESTIONS
-   └─> ChatGPT analyzes topic
-   └─> Generates 2-4 specific questions
-   └─> Auto-generates descriptive chat title
+### **Authentication**
+| Method | Endpoint | Description |
+|--------|-----------|-------------|
+| POST | `/api/auth/register` | Register new user |
+| POST | `/api/auth/login` | Login |
+| GET | `/api/auth/status` | Check auth status |
+| GET | `/api/auth/google` | Google OAuth redirect |
+| GET | `/api/auth/google/callback` | OAuth callback |
+| POST | `/api/auth/oauth-complete` | Exchange OAuth token for JWT |
+| POST | `/api/auth/logout` | Logout user |
 
-3. USER ANSWERS QUESTIONS
-   └─> Answer each question sequentially
-   └─> Refines research scope and focus
+---
 
-4. DUAL AI RESEARCH (Parallel)
-   ├─> ChatGPT generates comprehensive research
-   └─> Gemini generates comparative perspective
+### **Chat Management**
+| Method | Endpoint | Description |
+|--------|-----------|-------------|
+| GET | `/api/chats` | Get user’s chats |
+| POST | `/api/chats` | Create new chat |
+| GET | `/api/chats/:id` | Get chat info |
+| GET | `/api/chats/:id/messages` | Get messages |
 
-5. LIVE POLLING
-   └─> Frontend polls every 2 seconds
-   └─> Updates appear in real-time
-   └─> Shows placeholder for pending reports
+---
 
-6. EMAIL DELIVERY
-   └─> Click "Send Report via Email"
-   └─> PDF generated with clickable links
-   └─> Sent via SendGrid to user's email
+### **Research Workflow**
+| Method | Endpoint | Description |
+|--------|-----------|-------------|
+| POST | `/api/chats/:id/research-topic` | Submit research topic |
+| POST | `/api/chats/:id/clarification-answer` | Submit clarifying question answer |
 
-================================================================================
-  API ENDPOINTS
-================================================================================
+---
 
-AUTHENTICATION
-  POST   /api/auth/register          Register new user
-  POST   /api/auth/login             Login with credentials
-  GET    /api/auth/google            Google OAuth redirect
-  GET    /api/auth/google/callback   OAuth callback
-  POST   /api/auth/oauth-complete    Exchange OAuth token for JWT
-  POST   /api/auth/logout            Logout user
-  GET    /api/auth/status            Check auth status (JWT)
+### **Email**
+| Method | Endpoint | Description |
+|--------|-----------|-------------|
+| POST | `/api/chats/:id/send-email` | Send research report via email |
 
-CHAT MANAGEMENT
-  GET    /api/chats                  Get user's chats
-  POST   /api/chats                  Create new chat
-  GET    /api/chats/:id              Get chat info
-  GET    /api/chats/:id/messages     Get chat messages
-  
-RESEARCH WORKFLOW
-  POST   /api/chats/:id/research-topic          Submit research topic
-  POST   /api/chats/:id/clarification-answer    Answer clarifying question
+---
 
-EMAIL
-  POST   /api/chats/:id/send-email   Send research report via email
+### **User**
+| Method | Endpoint | Description |
+|--------|-----------|-------------|
+| GET | `/api/user/chat-count` | Get daily chat usage |
+| GET | `/api/user/profile` | Get user profile |
 
-USER
-  GET    /api/user/chat-count        Get daily chat count and limits
-  GET    /api/user/profile           Get user profile
+---
 
-HEALTH
-  GET    /                           Health check
-  GET    /health                     Health status
+### **Health**
+| Method | Endpoint | Description |
+|--------|-----------|-------------|
+| GET | `/` | Health check |
+| GET | `/health` | Server status |
 
-================================================================================
-  PROJECT STRUCTURE
-================================================================================
+---
 
+## 📁 Project Structure
+
+```
 project-root/
-│
 ├── Backend/
 │   └── server/
 │       ├── config/
-│       │   ├── constants.js            # Environment configuration
-│       │   └── passport.js             # Google OAuth strategy
-│       │
 │       ├── database/
-│       │   ├── connection.js           # PostgreSQL connection pool
-│       │   ├── queries.js              # Database CRUD operations
-│       │   └── schema.sql              # Table schemas & indexes
-│       │
 │       ├── middleware/
-│       │   └── auth.js                 # JWT verification middleware
-│       │
 │       ├── routes/
-│       │   ├── auth.js                 # Authentication routes
-│       │   ├── chats.js                # Chat CRUD & research
-│       │   ├── email.js                # Email sending endpoint
-│       │   ├── health.js               # Health check routes
-│       │   └── user.js                 # User profile routes
-│       │
 │       ├── services/
-│       │   ├── emailService.js         # SendGrid + PDF generation
-│       │   ├── gemini.js               # Google AI integration
-│       │   └── openai.js               # ChatGPT integration
-│       │
-│       ├── .env.example                # Environment variables template
-│       ├── .gitignore                  # Git ignore rules
-│       ├── index.js                    # Express server entry point
-│       ├── package.json                # Backend dependencies
-│       ├── setup-db.js                 # Database initialization script
-│       └── render.yaml                 # Render.com deployment config
+│       ├── index.js
+│       └── setup-db.js
 │
 └── Frontend/
     └── client/
         ├── src/
         │   ├── components/
-        │   │   ├── ChatApp.jsx         # Main chat interface
-        │   │   ├── ChatInput.jsx        # Message input component
-        │   │   ├── Login.jsx            # Login form
-        │   │   ├── Registration.jsx     # Registration form
-        │   │   ├── MessageBubble.jsx    # Chat message display
-        │   │   ├── Sidebar.jsx          # Chat history sidebar
-        │   │   ├── MobileHeader.jsx     # Mobile navigation
-        │   │   ├── LoadingScreen.jsx    # Loading indicator
-        │   │   └── *.css                # Component styles
-        │   │
         │   ├── hooks/
-        │   │   ├── useAuth.js           # Authentication state
-        │   │   ├── useChat.js           # Chat management
-        │   │   └── useUI.js             # UI state management
-        │   │
         │   ├── pages/
-        │   │   ├── ChatPage.jsx         # Main chat page
-        │   │   ├── LoginPage.jsx        # Login page with OAuth
-        │   │   └── RegistrationPage.jsx # Registration page
-        │   │
         │   ├── services/
-        │   │   └── api.js               # Axios HTTP client
-        │   │
-        │   ├── App.jsx                  # Root component
-        │   ├── App.css                  # Global styles
-        │   └── main.jsx                 # React entry point
-        │
-        ├── .env.example                 # Environment template
-        ├── .gitignore                   # Git ignore rules
-        ├── index.html                   # HTML template
-        ├── package.json                 # Frontend dependencies
-        ├── vercel.json                  # Vercel deployment config
-        └── vite.config.js               # Vite configuration
+        │   └── main.jsx
+```
 
-================================================================================
-  KEY FEATURES
-================================================================================
+---
 
-AUTHENTICATION
-  ✓ Local authentication (username/email + password)
-  ✓ Google OAuth 2.0 integration
-  ✓ JWT-based stateless authentication (7-day expiry)
-  ✓ Automatic token refresh
-  ✓ Persistent sessions across browser restarts
-  ✓ bcrypt password hashing
+## 🌟 Key Features
 
-CHAT MANAGEMENT
-  ✓ Unlimited chat history per user
-  ✓ Daily limits: 5 (free) or 20 (premium) chats
-  ✓ AI-generated descriptive titles
-  ✓ Real-time message updates
-  ✓ Chat state tracking (in-progress/completed/error)
-  ✓ Mobile-responsive sidebar
+✅ **Authentication**
+- Local & Google OAuth  
+- JWT-based auth (7-day expiry)  
+- bcrypt password hashing  
 
-RESEARCH WORKFLOW
-  ✓ Intelligent topic clarification (2-4 questions)
-  ✓ Dual AI perspective (ChatGPT + Gemini)
-  ✓ Parallel research generation
-  ✓ Live polling for research updates (2-second intervals)
-  ✓ Placeholder indicators for pending reports
-  ✓ No bold formatting (clean, readable output)
+✅ **Chat Management**
+- Unlimited chat history  
+- Daily chat limits (5 free / 20 premium)  
+- Auto-generated titles  
 
-EMAIL REPORTS
-  ✓ Professional PDF generation with PDFKit
-  ✓ Clickable hyperlinks in PDF
-  ✓ Separate sections for each AI
-  ✓ Executive summary (AI-generated)
-  ✓ Rich formatting (headers, lists, proper spacing)
-  ✓ SendGrid delivery with error handling
+✅ **Dual AI Research**
+- Clarifying questions  
+- Parallel ChatGPT + Gemini processing  
+- Real-time polling every 2s  
 
-UI/UX
-  ✓ Mobile-first responsive design
-  ✓ Smooth scrolling to latest messages
-  ✓ Loading indicators and animations
-  ✓ Error handling with user-friendly messages
-  ✓ Auto-focus on chat input
-  ✓ Keyboard shortcuts (Enter to send)
+✅ **Email Reports**
+- PDFKit for report generation  
+- Clickable links  
+- Executive summary & AI comparison  
+- Sent via SendGrid  
 
-================================================================================
-  DEVELOPMENT COMMANDS
-================================================================================
+✅ **UI/UX**
+- Responsive design  
+- Smooth chat scrolling  
+- Keyboard shortcuts  
+- Real-time loading states  
 
-BACKEND (Backend/server/)
-  npm install              Install dependencies
-  npm start                Start server (nodemon)
-  npm run setup-db         Initialize database tables
+---
 
-FRONTEND (Frontend/client/)
-  npm install              Install dependencies
-  npm run dev              Start dev server (Vite)
-  npm run build            Build for production
-  npm run preview          Preview production build
-  npm run lint             Run ESLint
+## 🧰 Development Commands
 
-================================================================================
-  DEPLOYMENT
-================================================================================
+**Backend**
+```bash
+cd Backend/server
+npm install
+npm run setup-db
+npm start
+```
 
-BACKEND (Render.com)
-  1. Push code to GitHub
-  2. Connect GitHub repo to Render
-  3. Select "Web Service"
-  4. Build Command: npm install
-  5. Start Command: node index.js
-  6. Add environment variables (see .env.example)
-  7. Deploy
+**Frontend**
+```bash
+cd Frontend/client
+npm install
+npm run dev
+npm run build
+npm run preview
+```
 
-FRONTEND (Vercel)
-  1. Push code to GitHub
-  2. Import project to Vercel
-  3. Framework: Vite
-  4. Root Directory: Frontend/client
-  5. Build Command: npm run build
-  6. Output Directory: dist
-  7. Add environment variable: VITE_API_URL=<backend-url>
-  8. Deploy
+---
 
-DATABASE (Supabase)
-  1. Create new project on Supabase
-  2. Copy connection string
-  3. Add to backend .env as SUPABASE_DB_URL
-  4. Run npm run setup-db from local machine
-  5. Tables created automatically
+## ☁️ Deployment
+
+### **Backend (Render.com)**
+1. Push to GitHub  
+2. Connect to Render  
+3. Select **Web Service**  
+4. Build: `npm install`  
+5. Start: `node index.js`  
+6. Add `.env` variables  
+7. Deploy 🚀
+
+### **Frontend (Vercel)**
+1. Import project  
+2. Framework: **Vite**  
+3. Root: `Frontend/client`  
+4. Build: `npm run build`  
+5. Output: `dist`  
+6. Add env: `VITE_API_URL=<backend-url>`  
+7. Deploy 🚀
+
+### **Database (Supabase)**
+1. Create project  
+2. Copy connection string  
+3. Add to `.env`  
+4. Run:
+```bash
+npm run setup-db
+```
+
+---
+
+## 🧾 License
+This project is licensed under the **MIT License**.
+
+---
+
+## ✨ Author
+**Arshit Jain**  
+💻 Full-stack Developer | AI Enthusiast  
+📧 [Contact via Email](mailto:noreply@yourdomain.com)
