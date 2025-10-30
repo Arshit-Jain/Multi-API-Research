@@ -338,41 +338,7 @@ npm start
 cd Frontend/client
 npm install
 npm run dev
-npm run build
-npm run preview
 ```
-
----
-
-## ☁️ Deployment
-
-### **Backend (Render.com)**
-1. Push to GitHub  
-2. Connect to Render  
-3. Select **Web Service**  
-4. Build: `npm install`  
-5. Start: `node index.js`  
-6. Add `.env` variables  
-7. Deploy 🚀
-
-### **Frontend (Vercel)**
-1. Import project  
-2. Framework: **Vite**  
-3. Root: `Frontend/client`  
-4. Build: `npm run build`  
-5. Output: `dist`  
-6. Add env: `VITE_API_URL=<backend-url>`  
-7. Deploy 🚀
-
-### **Database (Supabase)**
-1. Create project  
-2. Copy connection string  
-3. Add to `.env`  
-4. Run:
-```bash
-npm run setup-db
-```
-
 ---
 
 ## ✨ Author
